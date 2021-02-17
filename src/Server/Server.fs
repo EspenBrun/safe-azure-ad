@@ -48,6 +48,8 @@ let todosApi ctx =
 
 let configureApp (app:IApplicationBuilder) =
     app.UseAuthentication()
+        .UseHsts()
+        .UseHttpsRedirection()
 
 let configureServices (services : IServiceCollection) =
 

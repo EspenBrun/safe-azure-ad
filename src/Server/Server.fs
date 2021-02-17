@@ -1,8 +1,15 @@
 module Server
 
+open FSharp.Control.Tasks
 open Fable.Remoting.Server
 open Fable.Remoting.Giraffe
+open Microsoft.AspNetCore.Builder
+open Microsoft.Extensions.Configuration
+open Microsoft.Extensions.DependencyInjection
+open Microsoft.Identity.Web
 open Saturn
+open Giraffe
+open Microsoft.AspNetCore.Http
 
 open Shared
 
@@ -24,7 +31,7 @@ storage.AddTodo(Todo.create "Create new SAFE project") |> ignore
 storage.AddTodo(Todo.create "Write your app") |> ignore
 storage.AddTodo(Todo.create "Ship it !!!") |> ignore
 
-let todosApi =
+let todosApi ctx =
     { getTodos = fun () -> async { return storage.GetTodos() }
       addTodo =
         fun todo -> async {
@@ -39,13 +46,59 @@ let webApp =
     |> Remoting.fromValue todosApi
     |> Remoting.buildHttpHandler
 
+let configureApp (app:IApplicationBuilder) =
+    app.UseAuthentication()
+
+let configureServices (services : IServiceCollection) =
+
+    let config = services.BuildServiceProvider().GetService<IConfiguration>()
+
+    services
+        .AddMicrosoftIdentityWebAppAuthentication (config, openIdConnectScheme = "AzureAD")
+        |> ignore
+
+    services
+
+let buildRemotingApi api next ctx = task {
+    let handler =
+        Remoting.createApi()
+        |> Remoting.withRouteBuilder Route.builder
+        |> Remoting.fromValue (api ctx)
+        |> Remoting.buildHttpHandler
+    return! handler next ctx }
+
+let authScheme = "AzureAD"
+
+//let isDevelopment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") = Environments.Development;
+
+//let noAuthenticationRequired nxt ctx = task { return! nxt ctx }
+
+let requireLoggedIn : HttpFunc -> HttpContext -> HttpFuncResult =
+//    if isDevelopment then
+//        noAuthenticationRequired
+//    else
+    requiresAuthentication (RequestErrors.UNAUTHORIZED authScheme "My Application" "You must be logged in.")
+
+let authChallenge : HttpFunc -> HttpContext -> HttpFuncResult =
+//    if isDevelopment then
+//        noAuthenticationRequired
+//    else
+    requiresAuthentication (Auth.challenge authScheme)
+
+let routes =
+    choose [
+//        requireLoggedIn >=> buildRemotingApi api1
+        authChallenge >=> buildRemotingApi todosApi
+    ]
 let app =
     application {
         url "http://0.0.0.0:8085"
-        use_router webApp
+        service_config configureServices
+        app_config configureApp
+        use_router routes
         memory_cache
         use_static "public"
         use_gzip
     }
 
-run app
+Application.run app

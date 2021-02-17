@@ -40,11 +40,11 @@ let todosApi ctx =
             | Error e -> return failwith e
         } }
 
-let webApp =
-    Remoting.createApi()
-    |> Remoting.withRouteBuilder Route.builder
-    |> Remoting.fromValue todosApi
-    |> Remoting.buildHttpHandler
+//let webApp =
+//    Remoting.createApi()
+//    |> Remoting.withRouteBuilder Route.builder
+//    |> Remoting.fromValue todosApi
+//    |> Remoting.buildHttpHandler
 
 let configureApp (app:IApplicationBuilder) =
     app.UseAuthentication()

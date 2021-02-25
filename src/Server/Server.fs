@@ -70,7 +70,7 @@ let authChallenge : HttpFunc -> HttpContext -> HttpFuncResult =
 let routes =
     choose [
         route "/" >=> authChallenge >=>  htmlFile "public/app.html"
-        requireLoggedIn >=> buildRemotingApi todosApi
+        subRoute "/api" (requireLoggedIn >=> buildRemotingApi todosApi)
     ]
 
 let configureServices (services : IServiceCollection) =

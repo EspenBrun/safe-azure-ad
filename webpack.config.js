@@ -15,25 +15,26 @@ var MiniCssExtractPlugin = require('mini-css-extract-plugin')
 var CONFIG = {
     // The tags to include the generated JS and CSS will be automatically injected in the HTML template
     // See https://github.com/jantimon/html-webpack-plugin
-    indexHtmlTemplate: './src/Client/index.html',
+    appHtmlTemplate: './src/Client/app.html',
     fsharpEntry: './src/Client/Client.fsproj',
-    outputDir: './deploy/public',
+    outputDir: './src/Server/public',
     assetsDir: './src/Client/public',
     devServerPort: 8080,
     // When using webpack-dev-server, you may need to redirect some calls
     // to a external API server. See https://webpack.js.org/configuration/dev-server/#devserver-proxy
     devServerProxy: {
         // redirect requests that start with /api/ to the server on port 8085
-        '/api/**': {
+        '**': {
             target: 'http://localhost:' + (process.env.SERVER_PROXY_PORT || "8085"),
-               changeOrigin: true
-           },
+            changeOrigin: true,
+            ws: false
+        },
         // redirect websocket requests that start with /socket/ to the server on the port 8085
         '/socket/**': {
             target: 'http://localhost:' + (process.env.SERVER_PROXY_PORT || "8085"),
             ws: true
-           }
-       },
+        }
+    },
     babel: {
         presets: [
             ['@babel/preset-env', {
@@ -58,8 +59,8 @@ console.log('Bundling for ' + environment + '...');
 // and automatically injects <script> or <link> tags for generated bundles.
 var commonPlugins = [
     new HtmlWebpackPlugin({
-        filename: 'index.html',
-        template: resolve(CONFIG.indexHtmlTemplate)
+        filename: 'app.html',
+        template: resolve(CONFIG.appHtmlTemplate)
     })
 ];
 
@@ -94,7 +95,7 @@ module.exports = {
     plugins: isProduction ?
         commonPlugins.concat([
             new MiniCssExtractPlugin({ filename: 'style.[name].[hash].css' }),
-            new CopyWebpackPlugin({ patterns: [{ from: resolve(CONFIG.assetsDir) }]}),
+            new CopyWebpackPlugin({ patterns: [{ from: resolve(CONFIG.assetsDir) }] }),
         ])
         : commonPlugins.concat([
             new webpack.HotModuleReplacementPlugin(),
@@ -111,7 +112,8 @@ module.exports = {
         port: CONFIG.devServerPort,
         proxy: CONFIG.devServerProxy,
         hot: true,
-        inline: true
+        inline: true,
+        writeToDisk: true
     },
     // - fable-loader: transforms F# into JS
     // - babel-loader: transforms JS to old syntax (compatible with old browsers)

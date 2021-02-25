@@ -16,6 +16,10 @@ let deployDir = Path.getFullName "./deploy"
 let sharedTestsPath = Path.getFullName "./tests/Shared"
 let serverTestsPath = Path.getFullName "./tests/Server"
 
+let serverPublicPath = Path.getFullName "./src/Server/public"
+let clientPath = Path.getFullName "./src/Client"
+let clientPublicPath = Path.combine clientPath "public"
+
 let npm args workingDir =
     let npmPath =
         match ProcessUtils.tryFindFileOnPath "npm" with
@@ -38,7 +42,9 @@ let dotnet cmd workingDir =
     let result = DotNet.exec (DotNet.Options.withWorkingDirectory workingDir) cmd ""
     if result.ExitCode <> 0 then failwithf "'dotnet %s' failed in %s" cmd workingDir
 
-Target.create "Clean" (fun _ -> Shell.cleanDir deployDir)
+Target.create "Clean" (fun _ ->
+    Shell.cleanDir deployDir
+    Shell.cleanDir serverPublicPath)
 
 Target.create "InstallClient" (fun _ -> npm "install" ".")
 
@@ -63,6 +69,7 @@ Target.create "Azure" (fun _ ->
 )
 
 Target.create "Run" (fun _ ->
+    Shell.copyDir serverPublicPath clientPublicPath FileFilter.allFiles
     dotnet "build" sharedPath
     [ async { dotnet "watch run" serverPath }
       async { npm "run start" "." } ]

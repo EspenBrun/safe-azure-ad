@@ -51,7 +51,6 @@ let buildRemotingApi api next ctx = task {
     return! handler next ctx }
 
 let authScheme = "AzureAD"
-
 let isDevelopment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") = Environments.Development;
 
 let noAuthenticationRequired nxt ctx = task { return! nxt ctx }
@@ -70,6 +69,7 @@ let authChallenge : HttpFunc -> HttpContext -> HttpFuncResult =
 
 let routes =
     choose [
+        route "/" >=> authChallenge >=>  htmlFile "public/app.html"
         requireLoggedIn >=> buildRemotingApi todosApi
     ]
 
@@ -78,13 +78,14 @@ let configureServices (services : IServiceCollection) =
     let config = services.BuildServiceProvider().GetService<IConfiguration>()
 
     services
-        .AddMicrosoftIdentityWebAppAuthentication (config, openIdConnectScheme = "AzureAD")
+        .AddMicrosoftIdentityWebAppAuthentication (config, openIdConnectScheme = authScheme)
         |> ignore
 
     services
 
 let configureApp (app:IApplicationBuilder) =
-    app.UseAuthentication()
+    app
+        .UseAuthentication()
         .UseHsts()
         .UseHttpsRedirection()
 

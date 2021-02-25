@@ -12,6 +12,8 @@ open Giraffe
 open Microsoft.AspNetCore.Http
 
 open Shared
+open Microsoft.Extensions.Hosting
+open System
 
 type Storage () =
     let todos = ResizeArray<_>()
@@ -40,16 +42,36 @@ let todosApi ctx =
             | Error e -> return failwith e
         } }
 
-//let webApp =
-//    Remoting.createApi()
-//    |> Remoting.withRouteBuilder Route.builder
-//    |> Remoting.fromValue todosApi
-//    |> Remoting.buildHttpHandler
+let buildRemotingApi api next ctx = task {
+    let handler =
+        Remoting.createApi()
+        |> Remoting.withRouteBuilder Route.builder
+        |> Remoting.fromValue (api ctx)
+        |> Remoting.buildHttpHandler
+    return! handler next ctx }
 
-let configureApp (app:IApplicationBuilder) =
-    app.UseAuthentication()
-        .UseHsts()
-        .UseHttpsRedirection()
+let authScheme = "AzureAD"
+
+let isDevelopment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") = Environments.Development;
+
+let noAuthenticationRequired nxt ctx = task { return! nxt ctx }
+
+let requireLoggedIn : HttpFunc -> HttpContext -> HttpFuncResult =
+    //if isDevelopment then
+    //    noAuthenticationRequired
+    //else
+        requiresAuthentication (RequestErrors.UNAUTHORIZED authScheme "My Application" "You must be logged in.")
+
+let authChallenge : HttpFunc -> HttpContext -> HttpFuncResult =
+    //if isDevelopment then
+    //    noAuthenticationRequired
+    //else
+        requiresAuthentication (Auth.challenge authScheme)
+
+let routes =
+    choose [
+        requireLoggedIn >=> buildRemotingApi todosApi
+    ]
 
 let configureServices (services : IServiceCollection) =
 
@@ -61,37 +83,11 @@ let configureServices (services : IServiceCollection) =
 
     services
 
-let buildRemotingApi api next ctx = task {
-    let handler =
-        Remoting.createApi()
-        |> Remoting.withRouteBuilder Route.builder
-        |> Remoting.fromValue (api ctx)
-        |> Remoting.buildHttpHandler
-    return! handler next ctx }
+let configureApp (app:IApplicationBuilder) =
+    app.UseAuthentication()
+        .UseHsts()
+        .UseHttpsRedirection()
 
-let authScheme = "AzureAD"
-
-//let isDevelopment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") = Environments.Development;
-
-//let noAuthenticationRequired nxt ctx = task { return! nxt ctx }
-
-let requireLoggedIn : HttpFunc -> HttpContext -> HttpFuncResult =
-//    if isDevelopment then
-//        noAuthenticationRequired
-//    else
-    requiresAuthentication (RequestErrors.UNAUTHORIZED authScheme "My Application" "You must be logged in.")
-
-let authChallenge : HttpFunc -> HttpContext -> HttpFuncResult =
-//    if isDevelopment then
-//        noAuthenticationRequired
-//    else
-    requiresAuthentication (Auth.challenge authScheme)
-
-let routes =
-    choose [
-//        requireLoggedIn >=> buildRemotingApi api1
-        authChallenge >=> buildRemotingApi todosApi
-    ]
 let app =
     application {
         url "http://0.0.0.0:8085"

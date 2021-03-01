@@ -362,3 +362,7 @@ MigrationBackup/
 FodyWeavers.xsd
 
 src/Server/public/
+.farmer/
+.idea/
+deploy/
+
